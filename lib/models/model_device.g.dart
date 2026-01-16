@@ -38,7 +38,8 @@ Map<String, dynamic> _$DeviceToJson(Device instance) => <String, dynamic>{
 
 const _$DeviceStatusEnumMap = {
   DeviceStatus.online: 'online',
-  DeviceStatus.ofline: 'ofline',
+  DeviceStatus.offline: 'offline',
+  DeviceStatus.unstable: 'unstable',
 };
 
 const _$ConnectStatusEnumMap = {

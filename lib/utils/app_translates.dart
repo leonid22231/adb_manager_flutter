@@ -5,7 +5,20 @@ enum AppTranslates {
   notificationTestBody('Test body'),
   //Notification device online
   notificationDeviceOnlineTitle('Устройство появилось в сети'),
-  notificationDeviceOnlineBody('Устройство "{name}" появилось в сети');
+  notificationDeviceOnlineBody('Устройство "{name}" появилось в сети'),
+  //Notification device offline
+  notificationDeviceOfflineTitle('Устройство больше не в сети'),
+  notificationDeviceOfflineBody('Устройство "{name}" больше не в сети'),
+  //Notification device unstable
+  notificationDeviceUnstableTitle('Соединение с устрйством нестабильно'),
+  notificationDeviceUnstableBody(
+    'Соединение с устройством "{name}" нестабильно',
+  ),
+  //Notification device adb not connect
+  notificationDeviceAdbNotConnectTitle('Не удалось подключить к устройству'),
+  notificationDeviceAdbNotConnectBody(
+    'Не удалось подключить к устройству по ADB.Возможно: ADB-отладка выключена на устройстве.Неверный IP-адрес или порт',
+  );
 
   const AppTranslates(this.value);
   final String value;

@@ -370,7 +370,7 @@ class _WidgetDeviceState extends State<WidgetDevice> {
                     ),
                     SizedBox(width: 10),
                     Text(
-                      '${device.deviceIp}${device.isEmulator() ? '' : ':${device.devicePort}'}',
+                      device.getAddressMaybeNotPort(),
                       style: TextStyle(
                         fontSize: 10,
                         color: Colors.grey.shade600,
@@ -389,11 +389,7 @@ class _WidgetDeviceState extends State<WidgetDevice> {
                     ),
                     if (!device.isEmulator()) ...[
                       SizedBox(width: 8),
-                      _buildStatusChip(
-                        'NETWORK',
-                        device.deviceStatus == DeviceStatus.online,
-                        Colors.green,
-                      ),
+                      _buildNetworkStatusChip('NETWORK', device.deviceStatus),
                     ],
                     Spacer(),
                     if (device.isConnectAvailable()) ...[
@@ -417,6 +413,74 @@ class _WidgetDeviceState extends State<WidgetDevice> {
                   ],
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNetworkStatusChip(String label, DeviceStatus status) {
+    Color backgroundColor;
+    Color borderColor;
+    Color dotColor;
+    Color textColor;
+
+    switch (status) {
+      case DeviceStatus.online:
+        backgroundColor = Color(0xFF22c55e).setOpacity(0.15);
+        borderColor = Color(0xFF22c55e).setOpacity(0.4);
+        dotColor = Color(0xFF22c55e);
+        textColor = Color(0xFF22c55e);
+        break;
+
+      case DeviceStatus.offline:
+        backgroundColor = Color(0xFFef4444).setOpacity(0.15);
+        borderColor = Color(0xFFef4444).setOpacity(0.4);
+        dotColor = Color(0xFFef4444);
+        textColor = Color(0xFFef4444);
+        break;
+
+      case DeviceStatus.unstable:
+        backgroundColor = Color(0xFFeab308).setOpacity(0.15);
+        borderColor = Color(0xFFeab308).setOpacity(0.4);
+        dotColor = Color(0xFFeab308);
+        textColor = Color(0xFFeab308);
+        break;
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor, width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: dotColor,
+              boxShadow: [
+                BoxShadow(
+                  color: dotColor.setOpacity(0.4),
+                  blurRadius: 3,
+                  offset: Offset(0, 0),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(width: 7),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: textColor,
             ),
           ),
         ],

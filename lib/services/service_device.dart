@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:adb_manager/app/di.dart';
@@ -66,9 +67,9 @@ class ServiceDevice {
     _syncRunning = true;
     _notifyListeners();
     for (Device device in _deviceList) {
-      bool isOnline = await _pingDeviceNetwork(device);
-      device.setDeviceOnline(isOnline);
-      if (isOnline || device.isEmulator()) {
+      DevicePingStatus pingStatus = await _pingDeviceNetwork(device);
+      device.setDeviceOnline(pingStatus);
+      if (pingStatus.isOnline || device.isEmulator()) {
         bool isAdbConnect = await _pingDeviceAdb(device);
 
         device.setDeviceAdbConnect(isAdbConnect);
@@ -81,30 +82,34 @@ class ServiceDevice {
     _syncRunning = false;
   }
 
-  Future<bool> _pingDeviceNetwork(Device device) async {
-    if (device.isEmulator()) return false;
+  Future<DevicePingStatus> _pingDeviceNetwork(Device device) async {
+    if (device.isEmulator()) return DevicePingStatus(isOnline: true);
 
     try {
       ProcessResult result = await Process.run('ping', [device.deviceIp ?? '']);
 
       String output = result.stdout.toString().toLowerCase();
 
+      int? lossPercent;
+
       bool hasReply =
           output.contains('reply from') ||
           output.contains('bytes=32') ||
           output.contains('ttl=');
 
-      bool noLoss =
-          output.contains('lost = 0') ||
-          output.contains('(0% loss)') ||
-          output.contains('0% loss');
+      log(output);
 
-      bool isOnline =
-          hasReply && noLoss && !output.contains('request timed out');
+      final lossPercentMatch = RegExp(r'\((\d+)% loss\)').firstMatch(output);
 
-      return isOnline;
+      if (lossPercentMatch != null) {
+        lossPercent = int.tryParse(lossPercentMatch.group(1) ?? '');
+      }
+
+      bool isOnline = hasReply && lossPercent != null;
+
+      return DevicePingStatus(isOnline: isOnline, lossPercent: lossPercent);
     } catch (e) {
-      return false;
+      return DevicePingStatus(isOnline: false);
     }
   }
 
@@ -139,6 +144,8 @@ class ServiceDevice {
     _syncRunning = false;
     _notifyListeners();
   }
+
+  void showDialogDeviceOnline(DeviceStatus status) {}
 
   void clear() {
     di<ToolsStorage>().clear();
@@ -206,6 +213,30 @@ class ServiceDevice {
 
   bool get isInit => _isInit;
   bool get syncRunning => _syncRunning;
+}
+
+class DevicePingStatus {
+  bool isOnline;
+  int? lossPercent;
+
+  DevicePingStatus({required this.isOnline, this.lossPercent});
+
+  DeviceStatus getStatus() {
+    if (!isOnline) {
+      return DeviceStatus.offline;
+    }
+    if (isOnline) {
+      if (lossPercent != null) {
+        if (lossPercent! >= 50) {
+          return DeviceStatus.unstable;
+        } else {
+          return DeviceStatus.online;
+        }
+      }
+    }
+
+    return DeviceStatus.offline;
+  }
 }
 
 extension DeviceListExtension on List<Device> {

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
 import 'package:adb_manager/services/service_device.dart';
+import 'package:adb_manager/services/service_notifications.dart';
 import 'package:collection/collection.dart';
 
 class ServiceAdb {
@@ -160,6 +161,8 @@ class ServiceAdb {
       ProcessResult result = await Process.run('adb', ['connect', address]);
       String resultString = result.stdout;
       if (resultString.contains('cannot connect to')) {
+        device.setPort(port: null);
+        di<ServiceNotifications>().sendDeviceAdbNotConnect(device);
         return false;
       }
       if (resultString.contains('already connected to')) {

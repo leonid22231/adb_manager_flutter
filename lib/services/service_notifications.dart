@@ -46,18 +46,51 @@ class ServiceNotifications {
   }
 
   void sendDeviceOnlineNotification(Device device) {
-    Notification notification = Notification(
-      title: AppTranslates.notificationDeviceOnlineTitle.toString(),
-      body: AppTranslates.notificationDeviceOnlineBody.toStringValues([
+    String title;
+    String body;
+    if (device.deviceStatus == DeviceStatus.online) {
+      title = AppTranslates.notificationDeviceOnlineTitle.toString();
+      body = AppTranslates.notificationDeviceOnlineBody.toStringValues([
         AppTranslatesValue(name: 'name', value: device.name),
-      ]),
-    );
+      ]);
+    } else if (device.deviceStatus == DeviceStatus.offline) {
+      title = AppTranslates.notificationDeviceOfflineTitle.toString();
+      body = AppTranslates.notificationDeviceOfflineBody.toStringValues([
+        AppTranslatesValue(name: 'name', value: device.name),
+      ]);
+    } else {
+      title = AppTranslates.notificationDeviceUnstableTitle.toString();
+      body = AppTranslates.notificationDeviceUnstableBody.toStringValues([
+        AppTranslatesValue(name: 'name', value: device.name),
+      ]);
+    }
+
+    Notification notification = Notification(title: title, body: body);
+
+    String? subtitle = device.name != device.deviceIp
+        ? device.getAddressMaybeNotPort()
+        : null;
 
     notification.show(
       details: NotificationDetails(
-        windows: WindowsNotificationDetails(
-          subtitle: '${device.deviceIp}:${device.devicePort}',
-        ),
+        windows: WindowsNotificationDetails(subtitle: subtitle),
+      ),
+    );
+  }
+
+  void sendDeviceAdbNotConnect(Device device) {
+    Notification notification = Notification(
+      title: AppTranslates.notificationDeviceAdbNotConnectTitle.toString(),
+      body: AppTranslates.notificationDeviceAdbNotConnectBody.toString(),
+    );
+
+    String? subtitle = device.name != device.deviceIp
+        ? device.getAddressMaybeNotPort()
+        : null;
+
+    notification.show(
+      details: NotificationDetails(
+        windows: WindowsNotificationDetails(subtitle: subtitle),
       ),
     );
   }

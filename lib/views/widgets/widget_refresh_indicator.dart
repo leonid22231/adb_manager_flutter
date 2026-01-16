@@ -19,7 +19,7 @@ class _WidgetRefreshIndicatorState extends State<WidgetRefreshIndicator>
     with TickerProviderStateMixin {
   late AnimationController _appearController;
   late AnimationController
-  _spinnerController; // Отдельный для бесконечного вращения
+  _spinnerController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -29,19 +29,16 @@ class _WidgetRefreshIndicatorState extends State<WidgetRefreshIndicator>
   void initState() {
     super.initState();
 
-    // Контроллер появления/исчезновения (1000ms)
     _appearController = AnimationController(
       duration: Duration(milliseconds: 1000),
       vsync: this,
     );
 
-    // Бесконечное вращение спиннера
     _spinnerController = AnimationController(
       duration: Duration(seconds: 1),
       vsync: this,
-    )..repeat(); // Запускаем сразу и бесконечно
+    )..repeat();
 
-    // Анимации появления
     _slideAnimation = Tween<Offset>(begin: Offset(-0.5, 0), end: Offset.zero)
         .animate(
           CurvedAnimation(
@@ -68,11 +65,9 @@ class _WidgetRefreshIndicatorState extends State<WidgetRefreshIndicator>
       CurvedAnimation(parent: _spinnerController, curve: Curves.linear),
     );
 
-    // Автозапуск анимации появления
     _appearController.forward();
   }
 
-  // Публичный метод для запуска исчезновения
   Future<void> hide() async {
     await _appearController.reverse();
   }

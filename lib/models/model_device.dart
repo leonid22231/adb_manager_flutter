@@ -1,3 +1,6 @@
+import 'package:adb_manager/app/di.dart';
+import 'package:adb_manager/services/service_device.dart';
+import 'package:adb_manager/services/service_notifications.dart';
 import 'package:adb_manager/utils/json_serializable_model.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -17,7 +20,7 @@ class Device extends JsonSerializableModel {
 
   Device({required this.name, this.deviceIp, this.devicePort})
     : id = 0,
-      deviceStatus = DeviceStatus.ofline,
+      deviceStatus = DeviceStatus.offline,
       connectStatus = ConnectStatus.disconnect,
       deviceType = name.contains('emulator')
           ? DeviceType.emulator
@@ -25,6 +28,10 @@ class Device extends JsonSerializableModel {
       createDate = DateTime.now();
 
   String getAddress() => '$deviceIp:$devicePort';
+  
+  String getAddressMaybeNotPort() =>
+      '$deviceIp${(isEmulator() || devicePort == null) ? '' : ':$devicePort'}';
+
   void setIpAndPort({required String? ip, required String? port}) {
     deviceIp = ip;
     devicePort = port;
@@ -34,11 +41,14 @@ class Device extends JsonSerializableModel {
     deviceIp = ip;
   }
 
-  void setDeviceOnline(bool value) {
-    if (value) {
-      deviceStatus = DeviceStatus.online;
-    } else {
-      deviceStatus = DeviceStatus.ofline;
+  void setPort({required String? port}) {
+    devicePort = port;
+  }
+
+  void setDeviceOnline(DevicePingStatus status) {
+    if (status.getStatus() != deviceStatus) {
+      deviceStatus = status.getStatus();
+      di<ServiceNotifications>().sendDeviceOnlineNotification(this);
     }
   }
 
@@ -73,6 +83,6 @@ class Device extends JsonSerializableModel {
 
 enum ConnectStatus { connect, disconnect }
 
-enum DeviceStatus { online, ofline }
+enum DeviceStatus { online, offline, unstable }
 
 enum DeviceType { device, emulator }
