@@ -1,3 +1,4 @@
+import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
 import 'package:adb_manager/services/service_device.dart';
 import 'package:adb_manager/utils/extensions.dart';
@@ -29,9 +30,243 @@ class _WidgetDeviceState extends State<WidgetDevice> {
   }
 
   void onConnectDevice() {
-    ServiceDevice.instance.connectDevice(device);
+    di<ServiceDevice>().connectDevice(device);
   }
 
+  void onDisconnectDevice() {
+    di<ServiceDevice>().disconnectDevice(device);
+  }
+
+  void onOptionsTap() {
+    WidgetsBinding.instance.addPostFrameCallback((duration) {
+      showOptionsPopup();
+    });
+  }
+
+  showOptionsPopup() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+          child: Container(
+            width: 380,
+            padding: EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Colors.white, Colors.grey.shade50],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.setOpacity(0.4),
+                  blurRadius: 30,
+                  offset: Offset(0, 15),
+                ),
+              ],
+              border: Border.all(
+                color: Color(0xFF00d4ff).setOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Color(0xFF00d4ff).setOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.tune,
+                        color: Color(0xFF00d4ff),
+                        size: 24,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Настройки',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.blue,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close, color: Colors.white70, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: BoxConstraints(),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 28),
+
+                // Опции
+                _buildOptionTile(
+                  context,
+                  icon: Icons.delete,
+                  title: 'Удалить',
+                  subtitle: 'Удалить устройство из списка',
+                  color: Colors.redAccent,
+                  onTap: () {
+                    di<ServiceDevice>().removeDevice(device);
+                    Navigator.of(context).pop();
+                  },
+                ),
+
+                SizedBox(height: 24),
+
+                // Кнопки
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildButton(
+                        'Отмена',
+                        color: Colors.grey.shade800,
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: _buildButton(
+                        'Сохранить',
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF00d4ff), Color(0xFF0099cc)],
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          // Сохранить настройки
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildOptionTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.setOpacity(0.2), width: 1),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [color.setOpacity(0.2), color.setOpacity(0.1)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: color.setOpacity(0.3)),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 14, color: Colors.white60),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildButton(
+    String text, {
+    Color? color,
+    Gradient? gradient,
+    required VoidCallback onPressed,
+  }) {
+    return Material(
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+          decoration: BoxDecoration(
+            gradient:
+                gradient ??
+                LinearGradient(colors: [color!, color.setOpacity(0.8)]),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: (gradient?.colors.first ?? color!).setOpacity(0.3),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  //
+  //Widget
+  //
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -161,13 +396,24 @@ class _WidgetDeviceState extends State<WidgetDevice> {
                       ),
                     ],
                     Spacer(),
-                    if (device.connectStatus == ConnectStatus.disconnect) ...[
+                    if (device.isConnectAvailable()) ...[
                       WidgetButton(
                         title: 'Connect',
                         onTap: onConnectDevice,
                         color: Colors.greenAccent,
                       ),
-                    ],
+                    ] else if (device.isDisconnectAvailable())
+                      WidgetButton(
+                        title: 'Disconnect',
+                        onTap: onDisconnectDevice,
+                        color: Colors.redAccent,
+                      ),
+                    SizedBox(width: 12),
+                    WidgetButton(
+                      title: 'options',
+                      onTap: showOptionsPopup,
+                      color: Colors.lightBlue,
+                    ),
                   ],
                 ),
               ],
@@ -229,7 +475,7 @@ class _WidgetDeviceState extends State<WidgetDevice> {
         ),
         boxShadow: [
           BoxShadow(
-            color: (isOnline ? Colors.green : Colors.grey).withOpacity(0.4),
+            color: (isOnline ? Colors.green : Colors.grey).setOpacity(0.4),
             blurRadius: 6,
             offset: Offset(0, 2),
           ),

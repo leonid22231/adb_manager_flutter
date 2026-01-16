@@ -1,0 +1,76 @@
+import 'dart:math';
+
+import 'package:adb_manager/models/model_device.dart';
+import 'package:adb_manager/models/model_notification.dart';
+import 'package:adb_manager/utils/app_translates.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:uuid/uuid.dart';
+
+class ServiceNotifications {
+  static String guid = Uuid().v4();
+
+  static NotificationDetails defaultDetails = NotificationDetails(
+    windows: WindowsNotificationDetails(),
+  );
+
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
+
+  final List<Notification> _history = [];
+
+  void init() async {
+    final WindowsInitializationSettings initializationSettingsWindows =
+        WindowsInitializationSettings(
+          appName: AppTranslates.appName.toString(),
+          appUserModelId: 'Com.Dexterous.FlutterLocalNotificationsExample',
+          guid: guid,
+        );
+
+    final InitializationSettings initializationSettings =
+        InitializationSettings(windows: initializationSettingsWindows);
+
+    await _plugin.initialize(initializationSettings);
+  }
+
+  void saveNotification(Notification notification) {
+    _history.add(notification);
+  }
+
+  void sendTestPush() async {
+    Notification notification = Notification(
+      title: 'Test title',
+      body: 'Test body',
+    );
+
+    notification.show(showID: true);
+  }
+
+  void sendDeviceOnlineNotification(Device device) {
+    Notification notification = Notification(
+      title: AppTranslates.notificationDeviceOnlineTitle.toString(),
+      body: AppTranslates.notificationDeviceOnlineBody.toStringValues([
+        AppTranslatesValue(name: 'name', value: device.name),
+      ]),
+    );
+
+    notification.show(
+      details: NotificationDetails(
+        windows: WindowsNotificationDetails(
+          subtitle: '${device.deviceIp}:${device.devicePort}',
+        ),
+      ),
+    );
+  }
+
+  int newNotificationId() {
+    Random random = Random();
+    int tempId = 10000 + random.nextInt(90000);
+    bool isExist = _history.map((e) => e.id).contains(tempId);
+    if (isExist) {
+      return newNotificationId();
+    }
+    return tempId;
+  }
+
+  FlutterLocalNotificationsPlugin get pluginInstance => _plugin;
+}

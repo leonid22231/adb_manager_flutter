@@ -1,19 +1,24 @@
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
 import 'package:adb_manager/services/service_adb.dart';
+import 'package:adb_manager/utils/tools_storage.dart';
 import 'package:collection/collection.dart';
 
 class ServiceDevice {
+  String cacheKey = 'ServiceDevice.cache';
+
   bool _isInit = false;
   bool _syncRunning = false;
   final List<Device> _deviceList = [];
   final List<Function> _listeners = [];
   DateTime? lastUpdate;
-  static ServiceDevice instance = ServiceDevice();
 
-  void init() {
-    ServiceAdb.instance.init();
+  void init() async {
+    await _loadDevices();
+    di<ServiceAdb>().init();
     _isInit = true;
   }
 
@@ -104,7 +109,7 @@ class ServiceDevice {
   }
 
   Future<bool> _pingDeviceAdb(Device device) async {
-    return ServiceAdb.instance.deviceIsConnect(device);
+    return di<ServiceAdb>().deviceIsConnect(device);
   }
 
   Future<void> updateDevice(String ip, List<String> ports) async {
@@ -113,16 +118,31 @@ class ServiceDevice {
       return;
     }
 
-    await ServiceAdb.instance.updateDeviceInfo(device, ports);
+    await di<ServiceAdb>().updateDeviceInfo(device, ports);
     _notifyListeners();
   }
 
   Future<void> connectDevice(Device device) async {
     _syncRunning = true;
     _notifyListeners();
-    bool isConnected = await ServiceAdb.instance.connectDevice(device);
+    bool isConnected = await di<ServiceAdb>().connectDevice(device);
     device.setDeviceAdbConnect(isConnected);
     _syncRunning = false;
+    _notifyListeners();
+  }
+
+  Future<void> disconnectDevice(Device device) async {
+    _syncRunning = true;
+    _notifyListeners();
+    bool isConnected = await di<ServiceAdb>().disconnectDevice(device);
+    device.setDeviceAdbConnect(isConnected);
+    _syncRunning = false;
+    _notifyListeners();
+  }
+
+  void clear() {
+    di<ToolsStorage>().clear();
+    _deviceList.clear();
     _notifyListeners();
   }
 
@@ -132,6 +152,37 @@ class ServiceDevice {
 
   ///
   ////////////////////////////////////////////////////////
+
+  void _updateSavedDevices() {
+    List<Device> tempDevices = List.of(_deviceList);
+
+    String jsonString =
+        '[${tempDevices.map((e) => e.toJsonString()).join(',')}]';
+
+    di<ToolsStorage>().putString(cacheKey, jsonString);
+  }
+
+  Future<void> _loadDevices() async {
+    List<Device> cachedDevices = [];
+
+    String jsonString = di<ToolsStorage>().getString(cacheKey);
+
+    if (jsonString.isEmpty) {
+      return;
+    }
+
+    try {
+      dynamic json = jsonDecode(jsonString);
+      for (dynamic value in json) {
+        Device device = Device.fromJson(value);
+        cachedDevices.add(device);
+      }
+
+      _deviceList.addAll(cachedDevices);
+    } catch (e) {
+      //ignore
+    }
+  }
 
   ////////////////////////////////////////////////////////
   ///Listeners
@@ -144,6 +195,7 @@ class ServiceDevice {
   }
 
   void _notifyListeners() {
+    _updateSavedDevices();
     for (Function fnc in _listeners) {
       fnc.call();
     }

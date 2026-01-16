@@ -1,3 +1,7 @@
+import 'package:adb_manager/app/di.dart';
+import 'package:adb_manager/models/model_device.dart';
+import 'package:adb_manager/services/service_device.dart';
+import 'package:adb_manager/services/service_notifications.dart';
 import 'package:adb_manager/views/widgets/widget_button.dart';
 import 'package:flutter/material.dart';
 
@@ -8,8 +12,9 @@ class ScreenWidgets extends StatefulWidget {
     Widget buildButton() {
       return GestureDetector(
         onTap: () {
-          Navigator.of(context)
-              .push(MaterialPageRoute(builder: (context) => ScreenWidgets()));
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (context) => ScreenWidgets()));
         },
         child: Container(
           width: 50,
@@ -47,19 +52,38 @@ class _ScreenWidgets extends State {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Widgets test'.toUpperCase()),
-      ),
+      appBar: AppBar(title: Text('Widgets test'.toUpperCase())),
       body: Padding(
         padding: EdgeInsetsGeometry.symmetric(horizontal: 10),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             buildSection('Buttons', [
               WidgetButton(
-                title: 'Test',
-                onTap: () {},
-              )
-            ])
+                title: 'Send test push',
+                onTap: di<ServiceNotifications>().sendTestPush,
+              ),
+              SizedBox(height: 10),
+              WidgetButton(
+                title: 'Send test push device online',
+                onTap: () {
+                  di<ServiceNotifications>().sendDeviceOnlineNotification(
+                    Device(
+                      name: 'Девайс 123',
+                      deviceIp: '192.168.0.1',
+                      devicePort: '5555',
+                    ),
+                  );
+                },
+              ),
+            ]),
+            SizedBox(height: 10),
+            buildSection('Settings', [
+              WidgetButton(
+                title: 'Clear App',
+                onTap: di<ServiceDevice>().clear,
+              ),
+            ]),
           ],
         ),
       ),
@@ -76,16 +100,11 @@ class _ScreenWidgets extends State {
           children: [
             Text(title.toUpperCase()),
             SizedBox(height: 2),
-            Container(
-              height: 1,
-              color: borderColor,
-            ),
+            Container(height: 1, color: borderColor),
             SizedBox(height: 10),
             Padding(
               padding: EdgeInsetsGeometry.only(left: 10, right: 10, bottom: 10),
-              child: Column(
-                children: children,
-              ),
+              child: Column(children: children),
             ),
           ],
         ),

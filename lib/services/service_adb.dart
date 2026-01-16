@@ -1,6 +1,6 @@
-import 'dart:developer';
 import 'dart:io';
 
+import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
 import 'package:adb_manager/services/service_device.dart';
 import 'package:collection/collection.dart';
@@ -10,8 +10,6 @@ class ServiceAdb {
   bool _adbAvailable = false;
   ServiceAdbState? state;
   final List<Function> _listeners = [];
-
-  static ServiceAdb instance = ServiceAdb();
 
   void init() async {
     _isInit = true;
@@ -31,7 +29,7 @@ class ServiceAdb {
   void syncAdbDevices() async {
     if (!_adbAvailable) return;
     List<Device> devices = await _getAdbDevices();
-    ServiceDevice.instance.addDevices(devices);
+    di<ServiceDevice>().addDevices(devices);
   }
 
   ////////////////////////////////////////////////////////
@@ -175,7 +173,23 @@ class ServiceAdb {
       return false;
     }
   }
-  
+
+  Future<bool> disconnectDevice(Device device) async {
+    try {
+      String address = device.getAddress();
+      ProcessResult result = await Process.run('adb', ['disconnect', address]);
+      String resultString = result.stdout;
+      if (resultString.contains('error: no such device')) {
+        return true;
+      }
+      if (resultString.contains('disconnected $address')) {
+        return false;
+      }
+      return result.exitCode == 0;
+    } catch (e) {
+      return true;
+    }
+  }
   //'connected to'
   //'already connected to'
   //'cannot connect to'

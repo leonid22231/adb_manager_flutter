@@ -1,9 +1,10 @@
+import 'package:adb_manager/utils/json_serializable_model.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'model_device.g.dart';
 
 @JsonSerializable()
-class Device {
+class Device extends JsonSerializableModel {
   int id;
   String name;
   String? deviceIp;
@@ -51,8 +52,22 @@ class Device {
 
   bool isEmulator() => deviceType == DeviceType.emulator;
 
+  bool isConnectAvailable() {
+    return isAdbAvailable() && connectStatus == ConnectStatus.disconnect;
+  }
+
+  bool isDisconnectAvailable() {
+    return isAdbAvailable() && connectStatus == ConnectStatus.connect;
+  }
+
+  bool isAdbAvailable() {
+    return deviceStatus == DeviceStatus.online &&
+        (isEmulator() ? true : devicePort != null);
+  }
+
   factory Device.fromJson(Map<String, dynamic> json) => _$DeviceFromJson(json);
 
+  @override
   Map<String, dynamic> toJson() => _$DeviceToJson(this);
 }
 

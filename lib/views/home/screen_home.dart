@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
 
+import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
 import 'package:adb_manager/models/model_device_ports_info.dart';
 import 'package:adb_manager/services/service_adb.dart';
@@ -33,9 +34,9 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
       duration: const Duration(seconds: 1),
       vsync: this,
     )..repeat();
-    ServiceDevice.instance.init();
-    ServiceDevice.instance.addListener(update);
-    ServiceAdb.instance.addListener(update);
+    di<ServiceDevice>().init();
+    di<ServiceDevice>().addListener(update);
+    di<ServiceAdb>().addListener(update);
     startListening();
   }
 
@@ -51,7 +52,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
 
   void startListening() async {
     final server = await ServerSocket.bind(InternetAddress.anyIPv4, 41174);
-    print('Сервер слушает на порту 41174...');
+    log('Сервер слушает на порту 41174...');
 
     await for (final client in server) {
       handleClient(client);
@@ -59,7 +60,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
   }
 
   void handleClient(Socket client) async {
-    print('Соединение от ${client.remoteAddress.address}:${client.remotePort}');
+    log('Соединение от ${client.remoteAddress.address}:${client.remotePort}');
 
     List<int> bytes = [];
 
@@ -87,7 +88,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
 
   void processPorts(List<String> ports, String sourceIp) {
     log('От $sourceIp получены порты: $ports ${DateTime.now()}');
-    ServiceDevice.instance.updateDevice(sourceIp, ports);
+    di<ServiceDevice>().updateDevice(sourceIp, ports);
   }
 
   void addDevice() async {
@@ -102,7 +103,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
       return;
     }
 
-    ServiceDevice.instance.addDevice(newDevice);
+    di<ServiceDevice>().addDevice(newDevice);
   }
 
   void showSimpleMessage(String message) {
@@ -112,15 +113,15 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
   }
 
   void syncDevicesWithAdb() {
-    ServiceAdb.instance.syncAdbDevices();
+    di<ServiceAdb>().syncAdbDevices();
   }
 
   void updateAdbStatus() {
-    ServiceAdb.instance.syncAdbStatus();
+    di<ServiceAdb>().syncAdbStatus();
   }
 
   void updateDeviceStatus() {
-    ServiceDevice.instance.syncDevices();
+    di<ServiceDevice>().syncDevices();
   }
 
   bool _isValidIPv4(String ip) {
@@ -362,7 +363,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
       child: Stack(
         children: [
           Scaffold(body: buildDevicePart()),
-          if (ServiceDevice.instance.syncRunning)
+          if (di<ServiceDevice>().syncRunning)
             Positioned.fill(
               child: Padding(
                 padding: EdgeInsetsGeometry.only(bottom: 10, left: 10),
@@ -378,7 +379,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
   }
 
   Widget buildDevicePart() {
-    if (!ServiceAdb.instance.adbAvailable) {
+    if (!di<ServiceAdb>().adbAvailable) {
       return Container(
         decoration: BoxDecoration(color: Colors.black45),
         child: Center(
@@ -398,7 +399,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
         ),
       );
     }
-    if (ServiceDevice.instance.isEmpty()) {
+    if (di<ServiceDevice>().isEmpty()) {
       return Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -449,7 +450,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
               AnimatedBuilder(
                 animation: _ticker,
                 builder: (context, child) {
-                  final lastUpdate = ServiceDevice.instance.lastUpdate;
+                  final lastUpdate = di<ServiceDevice>().lastUpdate;
                   final text = lastUpdate != null
                       ? 'Обновлено: ${lastUpdate.timeAgo}'
                       : 'Нет обновлений';
@@ -463,10 +464,10 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
           ListView.separated(
             shrinkWrap: true,
             itemBuilder: (context, index) => WidgetDevice(
-              device: ServiceDevice.instance.deviceByIndex(index),
+              device: di<ServiceDevice>().deviceByIndex(index),
             ),
             separatorBuilder: (context, index) => SizedBox(height: 5),
-            itemCount: ServiceDevice.instance.count(),
+            itemCount: di<ServiceDevice>().count(),
           ),
         ],
       ),
