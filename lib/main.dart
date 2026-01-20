@@ -1,8 +1,12 @@
 import 'dart:developer';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:adb_manager/app/di.dart';
+import 'package:adb_manager/background_services/background_service_device.dart';
 import 'package:adb_manager/services/service_notifications.dart';
+import 'package:adb_manager/services/service_tray.dart';
+import 'package:adb_manager/services/service_window_manager.dart';
 import 'package:adb_manager/utils/app_translates.dart';
 import 'package:adb_manager/utils/tools_storage.dart';
 import 'package:adb_manager/views/home/screen_home.dart';
@@ -12,16 +16,32 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 void main(List<String> args) async {
   log('Arguments: ${args.toString()}');
-  setupDi();
-  di<ToolsStorage>().init();
-  di<ServiceNotifications>().init();
+  bool isAutoStart = false;
+  isAutoStart = !args.contains('--autostart');
 
-  if (!args.contains('--autostart')) {
-    WidgetsFlutterBinding.ensureInitialized();
-    setupLaunchAtStartup();
-  }
+  const bool isRunBuilder =
+      String.fromEnvironment('AUTOSTART', defaultValue: 'false') == 'true';
+
+  isAutoStart = isRunBuilder;
+  await init();
+  WidgetsFlutterBinding.ensureInitialized();
+  final rootToken = RootIsolateToken.instance!;
+
+  di<BackgroundServiceDevice>().init(rootToken);
+
+  await init();
+
+  await di<ServiceWindowManager>().init(isAutoStart: isAutoStart);
+  setupLaunchAtStartup();
+  di<ServiceTray>().init();
 
   runApp(const MyApp());
+}
+
+Future<void> init() async {
+  setupDi();
+  di<ToolsStorage>().init();
+  await di<ServiceNotifications>().init();
 }
 
 void setupLaunchAtStartup() async {

@@ -8,6 +8,7 @@ import 'package:adb_manager/models/model_device.dart';
 import 'package:adb_manager/models/model_device_ports_info.dart';
 import 'package:adb_manager/services/service_adb.dart';
 import 'package:adb_manager/services/service_device.dart';
+import 'package:adb_manager/services/service_window_manager.dart';
 import 'package:adb_manager/utils/extensions.dart';
 import 'package:adb_manager/views/utils/screen_widgets.dart';
 import 'package:adb_manager/views/widgets/widget_device.dart';
@@ -30,6 +31,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    di<ServiceWindowManager>().hideIfAutoStart();
     _ticker = AnimationController(
       duration: const Duration(seconds: 1),
       vsync: this,
@@ -463,9 +465,8 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
           SizedBox(height: 10),
           ListView.separated(
             shrinkWrap: true,
-            itemBuilder: (context, index) => WidgetDevice(
-              device: di<ServiceDevice>().deviceByIndex(index),
-            ),
+            itemBuilder: (context, index) =>
+                WidgetDevice(device: di<ServiceDevice>().deviceByIndex(index)),
             separatorBuilder: (context, index) => SizedBox(height: 5),
             itemCount: di<ServiceDevice>().count(),
           ),

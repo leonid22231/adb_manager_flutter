@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 class ServiceNotifications {
   static String guid = Uuid().v4();
+  bool _isInit = false;
 
   static NotificationDetails defaultDetails = NotificationDetails(
     windows: WindowsNotificationDetails(),
@@ -18,7 +19,8 @@ class ServiceNotifications {
 
   final List<Notification> _history = [];
 
-  void init() async {
+  Future<void> init() async {
+    if (_isInit) return;
     final WindowsInitializationSettings initializationSettingsWindows =
         WindowsInitializationSettings(
           appName: AppTranslates.appName.toString(),
@@ -30,6 +32,8 @@ class ServiceNotifications {
         InitializationSettings(windows: initializationSettingsWindows);
 
     await _plugin.initialize(initializationSettings);
+
+    _isInit = true;
   }
 
   void saveNotification(Notification notification) {

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer';
 import 'dart:io';
 
 import 'package:adb_manager/app/di.dart';
@@ -96,8 +95,6 @@ class ServiceDevice {
           output.contains('reply from') ||
           output.contains('bytes=32') ||
           output.contains('ttl=');
-
-      log(output);
 
       final lossPercentMatch = RegExp(r'\((\d+)% loss\)').firstMatch(output);
 

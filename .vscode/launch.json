@@ -10,5 +10,14 @@
             "type": "dart",
             "program": "lib/main.dart",
         },
+        {
+            "name": "run autostart",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": [
+                "--dart-define=AUTOSTART=true"
+            ]
+        },
     ]
 }
