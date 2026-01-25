@@ -1,7 +1,7 @@
-import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
 import 'package:adb_manager/services/service_device.dart';
 import 'package:adb_manager/services/service_notifications.dart';
+import 'package:adb_manager/views/utils/app.dart';
 import 'package:adb_manager/views/widgets/widget_button.dart';
 import 'package:flutter/material.dart';
 
@@ -61,13 +61,13 @@ class _ScreenWidgets extends State {
             buildSection('Buttons', [
               WidgetButton(
                 title: 'Send test push',
-                onTap: di<ServiceNotifications>().sendTestPush,
+                onTap: App.di<ServiceNotifications>().sendTestPush,
               ),
               SizedBox(height: 10),
               WidgetButton(
                 title: 'Send test push device online',
                 onTap: () {
-                  di<ServiceNotifications>().sendDeviceOnlineNotification(
+                  App.di<ServiceNotifications>().sendDeviceOnlineNotification(
                     Device(
                       name: 'Девайс 123',
                       deviceIp: '192.168.0.1',
@@ -81,7 +81,7 @@ class _ScreenWidgets extends State {
             buildSection('Settings', [
               WidgetButton(
                 title: 'Clear App',
-                onTap: di<ServiceDevice>().clear,
+                onTap: App.di<ServiceDevice>().clear,
               ),
             ]),
           ],

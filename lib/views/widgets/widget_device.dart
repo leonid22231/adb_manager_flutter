@@ -1,11 +1,10 @@
-import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
-import 'package:adb_manager/services/service_device.dart';
+import 'package:adb_manager/services/proxies/service_device_proxy.dart';
 import 'package:adb_manager/utils/extensions.dart';
+import 'package:adb_manager/views/utils/app.dart';
 import 'package:adb_manager/views/widgets/widget_button.dart';
 import 'package:adb_manager/views/widgets/widget_simple_text.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 class WidgetDevice extends StatefulWidget {
   final Device device;
@@ -30,11 +29,11 @@ class _WidgetDeviceState extends State<WidgetDevice> {
   }
 
   void onConnectDevice() {
-    di<ServiceDevice>().connectDevice(device);
+    App.di<ServiceDeviceProxy>().connectDevice(device);
   }
 
   void onDisconnectDevice() {
-    di<ServiceDevice>().disconnectDevice(device);
+    App.di<ServiceDeviceProxy>().disconnectDevice(device);
   }
 
   void onOptionsTap() {
@@ -124,7 +123,7 @@ class _WidgetDeviceState extends State<WidgetDevice> {
                   subtitle: 'Удалить устройство из списка',
                   color: Colors.redAccent,
                   onTap: () {
-                    di<ServiceDevice>().removeDevice(device);
+                    App.di<ServiceDeviceProxy>().removeDevice(device);
                     Navigator.of(context).pop();
                   },
                 ),
@@ -343,11 +342,10 @@ class _WidgetDeviceState extends State<WidgetDevice> {
                         ),
                       ),
                     ),
-                    WidgetSimpleText(
-                      text: DateFormat(
-                        'Последнее обновление: dd-MM-yy HH:mm',
-                      ).format(DateTime.now()),
-                    ),
+                    if (device.deviceAppInfo.appInstalled)
+                      WidgetSimpleText(
+                        text: 'App version: ${device.deviceAppInfo.appVersion}',
+                      ),
                     SizedBox(width: 10),
                     _buildStatusDot(
                       device.isEmulator()
@@ -390,6 +388,12 @@ class _WidgetDeviceState extends State<WidgetDevice> {
                     if (!device.isEmulator()) ...[
                       SizedBox(width: 8),
                       _buildNetworkStatusChip('NETWORK', device.deviceStatus),
+                      SizedBox(width: 8),
+                      _buildStatusChip(
+                        'APP',
+                        device.deviceAppInfo.appInstalled,
+                        Colors.green,
+                      ),
                     ],
                     Spacer(),
                     if (device.isConnectAvailable()) ...[

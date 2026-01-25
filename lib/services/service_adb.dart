@@ -1,21 +1,27 @@
 import 'dart:io';
+import 'dart:isolate';
 
-import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
+import 'package:adb_manager/services/interface/service_adb_interface.dart';
 import 'package:adb_manager/services/service_device.dart';
 import 'package:adb_manager/services/service_notifications.dart';
 import 'package:collection/collection.dart';
+import 'package:get_it/get_it.dart';
 
-class ServiceAdb {
+class ServiceAdb extends ServiceAdbInterface {
+  final GetIt di;
+
+  ServiceAdb(this.di);
+
   bool _isInit = false;
   bool _adbAvailable = false;
   ServiceAdbState? state;
-  final List<Function> _listeners = [];
+  final List<SendPort> _listeners = [];
 
   void init() async {
     _isInit = true;
     await syncAdbStatus();
-    _updateState();
+    updateState();
   }
 
   void dispose() {
@@ -27,7 +33,7 @@ class ServiceAdb {
     _notifyListeners();
   }
 
-  void syncAdbDevices() async {
+  Future<void> syncAdbDevices() async {
     if (!_adbAvailable) return;
     List<Device> devices = await _getAdbDevices();
     di<ServiceDevice>().addDevices(devices);
@@ -37,7 +43,7 @@ class ServiceAdb {
   ///ADB
 
   Future<bool> deviceIsConnect(Device device) async {
-    await _updateState();
+    await updateState();
     Device? tempDevice = state!.devices.firstWhereOrNull(
       (e) => e.deviceIp == device.deviceIp,
     );
@@ -50,12 +56,13 @@ class ServiceAdb {
     return isConnect;
   }
 
-  Future<void> _updateState() async {
+  Future<void> updateState({bool forceUpdate = false}) async {
     if (!_adbAvailable) return;
 
     bool needUpdate =
         state == null ||
-        DateTime.now().difference(state!.lastUpdate).inSeconds >= 5;
+        DateTime.now().difference(state!.lastUpdate).inSeconds >= 5 ||
+        forceUpdate;
 
     if (!needUpdate) return;
 
@@ -224,17 +231,19 @@ class ServiceAdb {
 
   ////////////////////////////////////////////////////////
   ///Listeners
-  void addListener(Function fnc) {
-    _listeners.add(fnc);
+  @override
+  void addListener(SendPort port) {
+    _listeners.add(port);
   }
 
-  void removeListener(Function fnc) {
-    _listeners.remove(fnc);
+  @override
+  void removeListener(SendPort port) {
+    _listeners.remove(port);
   }
 
   void _notifyListeners() {
-    for (Function fnc in _listeners) {
-      fnc.call();
+    for (SendPort port in _listeners) {
+      port.send('');
     }
   }
 
@@ -242,7 +251,9 @@ class ServiceAdb {
   ////////////////////////////////////////////////////////
 
   bool get isInit => _isInit;
-  bool get adbAvailable => _adbAvailable;
+
+  @override
+  Future<bool> get adbAvailable => Future.value(_adbAvailable);
 }
 
 class ServiceAdbState {

@@ -2,14 +2,18 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
+import 'dart:isolate';
 
-import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
 import 'package:adb_manager/models/model_device_ports_info.dart';
+import 'package:adb_manager/models/model_server_message.dart';
+import 'package:adb_manager/services/proxies/service_adb_proxy.dart';
+import 'package:adb_manager/services/proxies/service_device_proxy.dart';
 import 'package:adb_manager/services/service_adb.dart';
-import 'package:adb_manager/services/service_device.dart';
 import 'package:adb_manager/services/service_window_manager.dart';
 import 'package:adb_manager/utils/extensions.dart';
+import 'package:adb_manager/utils/json_utils.dart';
+import 'package:adb_manager/views/utils/app.dart';
 import 'package:adb_manager/views/utils/screen_widgets.dart';
 import 'package:adb_manager/views/widgets/widget_device.dart';
 import 'package:adb_manager/views/widgets/widget_icon_button.dart';
@@ -25,21 +29,27 @@ class ScreenHome extends StatefulWidget {
   State<StatefulWidget> createState() => _ScreenHomeState();
 }
 
-class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
+class _ScreenHomeState extends State<ScreenHome>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ticker;
-
+  bool isEmpty = false;
+  bool adbAvailable = false;
+  ReceivePort serviceDeviceUpdatePort = ReceivePort();
+  ReceivePort serviceAdbUpdatePort = ReceivePort();
   @override
   void initState() {
     super.initState();
-    di<ServiceWindowManager>().hideIfAutoStart();
+    initJson();
+    App.di<ServiceWindowManager>().hideIfAutoStart();
     _ticker = AnimationController(
       duration: const Duration(seconds: 1),
       vsync: this,
     )..repeat();
-    di<ServiceDevice>().init();
-    di<ServiceDevice>().addListener(update);
-    di<ServiceAdb>().addListener(update);
-    startListening();
+    serviceDeviceUpdatePort.listen((_) => update());
+    serviceAdbUpdatePort.listen((_) => update());
+    App.di<ServiceDeviceProxy>().addListener(serviceDeviceUpdatePort.sendPort);
+    App.di<ServiceAdbProxy>().addListener(serviceAdbUpdatePort.sendPort);
+    startListeningPort();
   }
 
   @override
@@ -48,11 +58,22 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  void update() {
+  void initJson() {
+    JsonUtils.register(DevicePortsInfo.fromJson);
+    JsonUtils.register(ServerMessage.fromJson);
+  }
+
+  void update() async {
+    await asyncInit();
     setStateIfMounted();
   }
 
-  void startListening() async {
+  Future<void> asyncInit() async {
+    isEmpty = await App.di<ServiceDeviceProxy>().isEmpty();
+    adbAvailable = await App.di<ServiceAdbProxy>().adbAvailable;
+  }
+
+  void startListeningPort() async {
     final server = await ServerSocket.bind(InternetAddress.anyIPv4, 41174);
     log('Сервер слушает на порту 41174...');
 
@@ -75,11 +96,21 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
         final message = utf8.decode(bytes, allowMalformed: true);
         log(message);
 
-        DevicePortsInfo portsInfo = DevicePortsInfo.fromJson(
-          jsonDecode(message),
-        );
+        final object = JsonUtils.classFromJson(message);
+        log('Message type [${object?.runtimeType}]');
 
-        processPorts(portsInfo.ports, client.remoteAddress.address);
+        if (object is DevicePortsInfo) {
+          processPorts(object.ports, client.remoteAddress.address);
+        }
+
+        if (object is ServerMessage) {
+          if (object.type == ServerMessageType.appstart) {
+            App.di<ServiceDeviceProxy>().updateDeviceAppInfo(
+              client.remoteAddress.address,
+              object,
+            );
+          }
+        }
       }
     } catch (e) {
       log('Ошибка: $e');
@@ -90,7 +121,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
 
   void processPorts(List<String> ports, String sourceIp) {
     log('От $sourceIp получены порты: $ports ${DateTime.now()}');
-    di<ServiceDevice>().updateDevice(sourceIp, ports);
+    App.di<ServiceDeviceProxy>().updateDevice(sourceIp, ports);
   }
 
   void addDevice() async {
@@ -105,7 +136,7 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
       return;
     }
 
-    di<ServiceDevice>().addDevice(newDevice);
+    App.di<ServiceDeviceProxy>().addDevice(newDevice);
   }
 
   void showSimpleMessage(String message) {
@@ -115,15 +146,15 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
   }
 
   void syncDevicesWithAdb() {
-    di<ServiceAdb>().syncAdbDevices();
+    App.di<ServiceAdb>().syncAdbDevices();
   }
 
   void updateAdbStatus() {
-    di<ServiceAdb>().syncAdbStatus();
+    App.di<ServiceAdb>().syncAdbStatus();
   }
 
   void updateDeviceStatus() {
-    di<ServiceDevice>().syncDevices();
+    App.di<ServiceDeviceProxy>().syncDevices();
   }
 
   bool _isValidIPv4(String ip) {
@@ -365,23 +396,32 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
       child: Stack(
         children: [
           Scaffold(body: buildDevicePart()),
-          if (di<ServiceDevice>().syncRunning)
-            Positioned.fill(
-              child: Padding(
-                padding: EdgeInsetsGeometry.only(bottom: 10, left: 10),
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: WidgetRefreshIndicator(),
-                ),
-              ),
-            ),
+          FutureBuilder(
+            future: App.di<ServiceDeviceProxy>().syncRunning,
+            builder: (context, data) {
+              if (data.hasData) {
+                if (data.data as bool) {
+                  return Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsetsGeometry.only(bottom: 10, left: 10),
+                      child: Align(
+                        alignment: Alignment.bottomLeft,
+                        child: WidgetRefreshIndicator(),
+                      ),
+                    ),
+                  );
+                }
+              }
+              return SizedBox.shrink();
+            },
+          ),
         ],
       ),
     );
   }
 
   Widget buildDevicePart() {
-    if (!di<ServiceAdb>().adbAvailable) {
+    if (!adbAvailable) {
       return Container(
         decoration: BoxDecoration(color: Colors.black45),
         child: Center(
@@ -401,7 +441,8 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
         ),
       );
     }
-    if (di<ServiceDevice>().isEmpty()) {
+
+    if (isEmpty) {
       return Center(
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -433,14 +474,29 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
           SizedBox(height: 10),
           Row(
             children: [
-              WidgetIconButton(
-                icon: Icons.sync,
-                onTap: updateDeviceStatus,
-                size: 50,
-                isDark: true,
-                description: 'Нажмите для обновления статуса устройств',
+              FutureBuilder(
+                future: App.di<ServiceDeviceProxy>().syncRunning,
+                builder: (context, data) {
+                  if (data.hasData) {
+                    if (!(data.data as bool)) {
+                      return Column(
+                        children: [
+                          WidgetIconButton(
+                            icon: Icons.sync,
+                            onTap: updateDeviceStatus,
+                            size: 50,
+                            isDark: true,
+                            description:
+                                'Нажмите для обновления статуса устройств',
+                          ),
+                          SizedBox(width: 10),
+                        ],
+                      );
+                    }
+                  }
+                  return SizedBox.shrink();
+                },
               ),
-              SizedBox(width: 10),
               WidgetIconButton(
                 icon: Icons.add,
                 onTap: addDevice,
@@ -449,26 +505,50 @@ class _ScreenHomeState extends State with SingleTickerProviderStateMixin {
                 description: 'Нажмите для добавления устройства',
               ),
               Spacer(),
-              AnimatedBuilder(
-                animation: _ticker,
-                builder: (context, child) {
-                  final lastUpdate = di<ServiceDevice>().lastUpdate;
-                  final text = lastUpdate != null
-                      ? 'Обновлено: ${lastUpdate.timeAgo}'
-                      : 'Нет обновлений';
 
-                  return WidgetSimpleText(text: text);
+              FutureBuilder(
+                future: App.di<ServiceDeviceProxy>().lastUpdate,
+                builder: (context, data) {
+                  if (data.hasData) {
+                    return AnimatedBuilder(
+                      animation: _ticker,
+                      builder: (context, child) {
+                        final lastUpdate = data.data;
+                        final text = lastUpdate != null
+                            ? 'Обновлено: ${lastUpdate.timeAgo}'
+                            : 'Нет обновлений';
+
+                        return WidgetSimpleText(text: text);
+                      },
+                    );
+                  }
+                  return SizedBox.shrink();
                 },
               ),
             ],
           ),
           SizedBox(height: 10),
-          ListView.separated(
-            shrinkWrap: true,
-            itemBuilder: (context, index) =>
-                WidgetDevice(device: di<ServiceDevice>().deviceByIndex(index)),
-            separatorBuilder: (context, index) => SizedBox(height: 5),
-            itemCount: di<ServiceDevice>().count(),
+          FutureBuilder(
+            future: App.di<ServiceDeviceProxy>().count(),
+            builder: (context, data) {
+              if (data.hasData) {
+                return ListView.separated(
+                  shrinkWrap: true,
+                  itemBuilder: (context, index) => FutureBuilder(
+                    future: App.di<ServiceDeviceProxy>().deviceByIndex(index),
+                    builder: (context, data) {
+                      if (data.hasData && data.data != null) {
+                        return WidgetDevice(device: data.data!);
+                      }
+                      return SizedBox.shrink();
+                    },
+                  ),
+                  separatorBuilder: (context, index) => SizedBox(height: 5),
+                  itemCount: data.data ?? 0,
+                );
+              }
+              return SizedBox.shrink();
+            },
           ),
         ],
       ),

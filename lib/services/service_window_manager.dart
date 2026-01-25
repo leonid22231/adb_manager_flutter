@@ -20,6 +20,8 @@ class ServiceWindowManager {
       );
       windowManager.waitUntilReadyToShow(windowOptions, () async {
         this.isAutoStart = isAutoStart;
+        windowManager.setPreventClose(true);
+        windowManager.addListener(MyWindowListener());
         completer.complete();
       });
     } catch (e) {
@@ -64,5 +66,17 @@ class ServiceWindowManager {
 
   Future<void> close() async {
     await windowManager.close();
+  }
+}
+
+class MyWindowListener extends WindowListener {
+  @override
+  void onWindowClose() {
+    windowManager.hide();
+  }
+
+  @override
+  void onWindowMinimize() {
+    windowManager.hide();
   }
 }

@@ -22,7 +22,13 @@ Device _$DeviceFromJson(Map<String, dynamic> json) =>
       ..createDate = DateTime.parse(json['createDate'] as String)
       ..lastConnectDate = json['lastConnectDate'] == null
           ? null
-          : DateTime.parse(json['lastConnectDate'] as String);
+          : DateTime.parse(json['lastConnectDate'] as String)
+      ..lastUpdateDate = json['lastUpdateDate'] == null
+          ? null
+          : DateTime.parse(json['lastUpdateDate'] as String)
+      ..deviceAppInfo = DeviceAppInfo.fromJson(
+        json['deviceAppInfo'] as Map<String, dynamic>,
+      );
 
 Map<String, dynamic> _$DeviceToJson(Device instance) => <String, dynamic>{
   'id': instance.id,
@@ -34,6 +40,8 @@ Map<String, dynamic> _$DeviceToJson(Device instance) => <String, dynamic>{
   'deviceType': _$DeviceTypeEnumMap[instance.deviceType]!,
   'createDate': instance.createDate.toIso8601String(),
   'lastConnectDate': instance.lastConnectDate?.toIso8601String(),
+  'lastUpdateDate': instance.lastUpdateDate?.toIso8601String(),
+  'deviceAppInfo': instance.deviceAppInfo,
 };
 
 const _$DeviceStatusEnumMap = {

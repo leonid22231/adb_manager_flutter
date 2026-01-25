@@ -1,22 +1,30 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io';
+import 'dart:isolate';
 
-import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/models/model_device.dart';
+import 'package:adb_manager/models/model_device_app_info.dart';
+import 'package:adb_manager/models/model_server_message.dart';
+import 'package:adb_manager/services/interface/service_device_interface.dart';
 import 'package:adb_manager/services/service_adb.dart';
 import 'package:adb_manager/utils/tools_storage.dart';
 import 'package:collection/collection.dart';
+import 'package:get_it/get_it.dart';
 
-class ServiceDevice {
+class ServiceDevice implements ServiceDeviceInterface {
   String cacheKey = 'ServiceDevice.cache';
+  final GetIt di;
+  ServiceDevice(this.di);
 
   bool _isInit = false;
   bool _syncRunning = false;
   final List<Device> _deviceList = [];
-  final List<Function> _listeners = [];
-  DateTime? lastUpdate;
+  final List<SendPort> _listeners = [];
+  DateTime? _lastUpdate;
 
-  void init() async {
+  Future<void> init() async {
+    if (_isInit) return;
     await _loadDevices();
     di<ServiceAdb>().init();
     _isInit = true;
@@ -28,9 +36,10 @@ class ServiceDevice {
 
   ////////////////////////////////////////////////////////
   ///Devices
-  void addDevices(List<Device> devices) {
+  @override
+  Future<void> addDevices(List<Device> devices) async {
     List<Device> notAddedDevices = [];
-    for (Device device in devices) {
+    for (Device device in List.of(devices)) {
       bool isAdded =
           _deviceList.firstWhereOrNull((e) => e.deviceIp == device.deviceIp) !=
           null;
@@ -41,18 +50,22 @@ class ServiceDevice {
     }
     _deviceList.addAll(notAddedDevices);
     _notifyListeners();
+    syncDevices();
   }
 
-  void addDevice(Device device) {
+  @override
+  Future<void> addDevice(Device device) async {
     bool isAdded =
         _deviceList.firstWhereOrNull((e) => e.deviceIp == device.deviceIp) !=
         null;
     if (isAdded) return;
     _deviceList.add(device);
     _notifyListeners();
+    _notifyDeviceAppStarted(device);
   }
 
-  void removeDevice(Device device) {
+  @override
+  Future<void> removeDevice(Device device) async {
     bool isAdded =
         _deviceList.firstWhereOrNull((e) => e.deviceIp == device.deviceIp) !=
         null;
@@ -61,12 +74,18 @@ class ServiceDevice {
     _notifyListeners();
   }
 
+  @override
   Future<void> syncDevices() async {
     if (_syncRunning) return;
     _syncRunning = true;
     _notifyListeners();
-    for (Device device in _deviceList) {
+    for (Device device in List.of(_deviceList)) {
       DevicePingStatus pingStatus = await _pingDeviceNetwork(device);
+      if (pingStatus.isOnline &&
+          !device.isEmulator() &&
+          device.lastUpdateDate == null) {
+        _notifyDeviceAppStarted(device);
+      }
       device.setDeviceOnline(pingStatus);
       if (pingStatus.isOnline || device.isEmulator()) {
         bool isAdbConnect = await _pingDeviceAdb(device);
@@ -75,8 +94,10 @@ class ServiceDevice {
       } else {
         device.setDeviceAdbConnect(false);
       }
+
+      _notifyListeners();
     }
-    lastUpdate = DateTime.now();
+    _lastUpdate = DateTime.now();
     _notifyListeners();
     _syncRunning = false;
   }
@@ -114,6 +135,7 @@ class ServiceDevice {
     return di<ServiceAdb>().deviceIsConnect(device);
   }
 
+  @override
   Future<void> updateDevice(String ip, List<String> ports) async {
     Device? device = _deviceList.findByIp(ip);
     if (device == null) {
@@ -121,9 +143,28 @@ class ServiceDevice {
     }
 
     await di<ServiceAdb>().updateDeviceInfo(device, ports);
+
+    _notifyListeners();
+
+    syncDevices();
+  }
+
+  @override
+  Future<void> updateDeviceAppInfo(String ip, ServerMessage message) async {
+    Device? device = _deviceList.findByIp(ip);
+    if (device == null) {
+      return;
+    }
+
+    device.deviceAppInfo = DeviceAppInfo(
+      appInstalled: true,
+      appVersion: message.message,
+    );
+
     _notifyListeners();
   }
 
+  @override
   Future<void> connectDevice(Device device) async {
     _syncRunning = true;
     _notifyListeners();
@@ -133,6 +174,7 @@ class ServiceDevice {
     _notifyListeners();
   }
 
+  @override
   Future<void> disconnectDevice(Device device) async {
     _syncRunning = true;
     _notifyListeners();
@@ -150,9 +192,14 @@ class ServiceDevice {
     _notifyListeners();
   }
 
-  bool isEmpty() => _deviceList.isEmpty;
-  int count() => _deviceList.length;
-  Device deviceByIndex(int index) => _deviceList[index];
+  @override
+  Future<bool> isEmpty() => Future.value(_deviceList.isEmpty);
+
+  @override
+  Future<int> count() => Future.value(_deviceList.length);
+
+  @override
+  Future<Device> deviceByIndex(int index) => Future.value(_deviceList[index]);
 
   ///
   ////////////////////////////////////////////////////////
@@ -186,22 +233,57 @@ class ServiceDevice {
     } catch (e) {
       //ignore
     }
+
+    _notifyDevicesAppStarted();
+  }
+
+  Future<void> _notifyDevicesAppStarted() async {
+    for (Device device in _deviceList) {
+      await _notifyDeviceAppStarted(device);
+    }
+  }
+
+  Future<bool> _notifyDeviceAppStarted(Device device) async {
+    if (device.isEmulator()) return false;
+
+    bool appInstalled = false;
+    try {
+      final socket = await Socket.connect(device.deviceIp, 41174);
+      log('✅ Подключено: ${socket.remoteAddress.address}:${socket.remotePort}');
+      appInstalled = true;
+
+      ServerMessage message = ServerMessage(type: ServerMessageType.appstart);
+      final bytes = utf8.encode(message.toJsonString());
+
+      socket.add(bytes);
+
+      await socket.flush();
+
+      socket.destroy();
+    } catch (e) {
+      log('Error send appStarted $e');
+      appInstalled = false;
+    }
+
+    return appInstalled;
   }
 
   ////////////////////////////////////////////////////////
   ///Listeners
-  void addListener(Function fnc) {
-    _listeners.add(fnc);
+  @override
+  void addListener(SendPort port) {
+    _listeners.add(port);
   }
 
-  void removeListener(Function fnc) {
-    _listeners.remove(fnc);
+  @override
+  void removeListener(SendPort port) {
+    _listeners.remove(port);
   }
 
   void _notifyListeners() {
     _updateSavedDevices();
-    for (Function fnc in _listeners) {
-      fnc.call();
+    for (SendPort port in _listeners) {
+      port.send('');
     }
   }
 
@@ -209,7 +291,12 @@ class ServiceDevice {
   ////////////////////////////////////////////////////////
 
   bool get isInit => _isInit;
-  bool get syncRunning => _syncRunning;
+
+  @override
+  Future<DateTime?> get lastUpdate => Future.value(_lastUpdate);
+
+  @override
+  Future<bool> get syncRunning => Future.value(_syncRunning);
 }
 
 class DevicePingStatus {

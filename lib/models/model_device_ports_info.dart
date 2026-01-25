@@ -4,16 +4,14 @@ import 'package:json_annotation/json_annotation.dart';
 part 'model_device_ports_info.g.dart';
 
 @JsonSerializable()
-class DevicePortsInfo extends JsonSerializableModel{
+class DevicePortsInfo extends JsonSerializableModel {
   int size;
   List<String> ports;
 
-  DevicePortsInfo({int? size, List<String>? ports})
-    : size = size ?? 0,
-      ports = ports ?? [];
+  DevicePortsInfo({required this.size, required this.ports});
 
-
-  factory DevicePortsInfo.fromJson(Map<String, dynamic> json) => _$DevicePortsInfoFromJson(json);
+  factory DevicePortsInfo.fromJson(Map<String, dynamic> json) =>
+      _$DevicePortsInfoFromJson(json);
 
   @override
   Map<String, dynamic> toJson() => _$DevicePortsInfoToJson(this);

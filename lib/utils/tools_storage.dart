@@ -20,6 +20,7 @@ class ToolsStorage {
     if (!isInit()) {
       return '';
     }
+
     return getStringNullable(key) ?? '';
   }
 

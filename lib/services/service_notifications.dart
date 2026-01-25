@@ -32,7 +32,6 @@ class ServiceNotifications {
         InitializationSettings(windows: initializationSettingsWindows);
 
     await _plugin.initialize(initializationSettings);
-
     _isInit = true;
   }
 

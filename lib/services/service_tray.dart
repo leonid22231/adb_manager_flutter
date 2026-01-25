@@ -3,8 +3,8 @@
 import 'dart:developer';
 import 'dart:io';
 
-import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/services/service_window_manager.dart';
+import 'package:adb_manager/views/utils/app.dart';
 import 'package:system_tray/system_tray.dart';
 
 class ServiceTray {
@@ -16,22 +16,22 @@ class ServiceTray {
   final List<MenuItemLabel> _menuIsVisible = [
     MenuItemLabel(
       label: 'Hide',
-      onClicked: (menuItem) => di<ServiceWindowManager>().hide(),
+      onClicked: (menuItem) => App.di<ServiceWindowManager>().hide(),
     ),
     MenuItemLabel(
       label: 'Close Program',
-      onClicked: (menuItem) => di<ServiceWindowManager>().close(),
+      onClicked: (menuItem) => App.di<ServiceWindowManager>().close(),
     ),
   ];
 
   final List<MenuItemLabel> _menuIsNotVisible = [
     MenuItemLabel(
       label: 'Show',
-      onClicked: (menuItem) => di<ServiceWindowManager>().show(),
+      onClicked: (menuItem) => App.di<ServiceWindowManager>().show(),
     ),
     MenuItemLabel(
       label: 'Close Program',
-      onClicked: (menuItem) => di<ServiceWindowManager>().close(),
+      onClicked: (menuItem) => App.di<ServiceWindowManager>().close(),
     ),
   ];
 
@@ -71,9 +71,9 @@ class ServiceTray {
 
     _systemTray.registerSystemTrayEventHandler((eventName) async {
       if (eventName == kSystemTrayEventClick) {
-        di<ServiceWindowManager>().switchVisible();
+        App.di<ServiceWindowManager>().switchVisible();
       } else if (eventName == kSystemTrayEventRightClick) {
-        bool isVisible = await di<ServiceWindowManager>().isVisible();
+        bool isVisible = await App.di<ServiceWindowManager>().isVisible();
 
         if (isVisible) {
           await setMenu(menuList: _menuIsVisible);

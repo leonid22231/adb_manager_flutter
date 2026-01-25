@@ -1,6 +1,6 @@
-import 'package:adb_manager/app/di.dart';
 import 'package:adb_manager/services/service_notifications.dart';
 import 'package:adb_manager/utils/json_serializable_model.dart';
+import 'package:adb_manager/views/utils/app.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -16,7 +16,7 @@ class Notification extends JsonSerializableModel {
   Notification({this.id, this.title, this.body, this.payload, this.subtitle});
 
   void show({NotificationDetails? details, bool showID = false}) {
-    id ??= di<ServiceNotifications>().newNotificationId();
+    id ??= App.di<ServiceNotifications>().newNotificationId();
     String? tempTitle = title;
     if (showID) {
       tempTitle = '$title {id: [$id]}';
@@ -24,7 +24,7 @@ class Notification extends JsonSerializableModel {
     NotificationDetails notificationDetails =
         (details ?? ServiceNotifications.defaultDetails);
 
-    di<ServiceNotifications>().pluginInstance.show(
+    App.di<ServiceNotifications>().pluginInstance.show(
       id!,
       tempTitle,
       body,
@@ -32,7 +32,7 @@ class Notification extends JsonSerializableModel {
       payload: payload,
     );
 
-    di<ServiceNotifications>().saveNotification(this);
+    App.di<ServiceNotifications>().saveNotification(this);
   }
 
   factory Notification.fromJson(Map<String, dynamic> json) =>

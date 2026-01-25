@@ -75,6 +75,7 @@ class _WidgetRefreshIndicatorState extends State<WidgetRefreshIndicator>
   @override
   Widget build(BuildContext context) {
     return Material(
+      borderRadius: BorderRadius.circular(25),
       child: AnimatedBuilder(
         animation: Listenable.merge([_appearController, _spinnerController]),
         builder: (context, child) {

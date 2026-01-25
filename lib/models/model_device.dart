@@ -1,7 +1,8 @@
-import 'package:adb_manager/app/di.dart';
+import 'package:adb_manager/models/model_device_app_info.dart';
 import 'package:adb_manager/services/service_device.dart';
 import 'package:adb_manager/services/service_notifications.dart';
 import 'package:adb_manager/utils/json_serializable_model.dart';
+import 'package:adb_manager/views/utils/app.dart';
 import 'package:json_annotation/json_annotation.dart';
 
 part 'model_device.g.dart';
@@ -17,6 +18,8 @@ class Device extends JsonSerializableModel {
   DeviceType deviceType;
   DateTime createDate;
   DateTime? lastConnectDate;
+  DateTime? lastUpdateDate;
+  DeviceAppInfo deviceAppInfo;
 
   Device({required this.name, this.deviceIp, this.devicePort})
     : id = 0,
@@ -25,10 +28,11 @@ class Device extends JsonSerializableModel {
       deviceType = name.contains('emulator')
           ? DeviceType.emulator
           : DeviceType.device,
-      createDate = DateTime.now();
+      createDate = DateTime.now(),
+      deviceAppInfo = DeviceAppInfo();
 
   String getAddress() => '$deviceIp:$devicePort';
-  
+
   String getAddressMaybeNotPort() =>
       '$deviceIp${(isEmulator() || devicePort == null) ? '' : ':$devicePort'}';
 
@@ -39,17 +43,20 @@ class Device extends JsonSerializableModel {
 
   void setIp({required String ip}) {
     deviceIp = ip;
+    lastUpdateDate = DateTime.now();
   }
 
   void setPort({required String? port}) {
     devicePort = port;
+    lastUpdateDate = DateTime.now();
   }
 
   void setDeviceOnline(DevicePingStatus status) {
     if (status.getStatus() != deviceStatus) {
       deviceStatus = status.getStatus();
-      di<ServiceNotifications>().sendDeviceOnlineNotification(this);
+      App.di<ServiceNotifications>().sendDeviceOnlineNotification(this);
     }
+    lastUpdateDate = DateTime.now();
   }
 
   void setDeviceAdbConnect(bool value) {
@@ -58,6 +65,7 @@ class Device extends JsonSerializableModel {
     } else {
       connectStatus = ConnectStatus.disconnect;
     }
+    lastUpdateDate = DateTime.now();
   }
 
   bool isEmulator() => deviceType == DeviceType.emulator;
